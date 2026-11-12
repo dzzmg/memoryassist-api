@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MemoryAssist</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1d2330; --muted: #6b7385; --line: #e3e6ec;
+    --accent: #3b5bdb; --accent-soft: #e8edff; --risk: #e8590c; --risk-soft: #fff1e6;
+    --ok: #2b8a3e; --ok-soft: #e6f4ea; --bad: #c92a2a; --bad-soft: #fdecec;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+  header .logo { font-weight: 700; font-size: 18px; }
+  header .logo span { color: var(--accent); }
+  header .who { margin-left: auto; color: var(--muted); font-size: 14px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  nav { display: flex; gap: 4px; padding: 0 24px; background: var(--card); border-bottom: 1px solid var(--line); overflow-x: auto; }
+  nav button { border: 0; background: none; padding: 12px 14px; font: inherit; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+  h2 { margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .row > * { flex: 1 1 160px; }
+  .btn { border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.ghost { background: var(--accent-soft); color: var(--accent); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+  .msg.err { background: var(--bad-soft); color: var(--bad); }
+  .login { max-width: 420px; margin: 60px auto; }
+  .tabs2 { display: flex; gap: 6px; margin-bottom: 8px; }
+  .rec { display: grid; grid-template-columns: 40px 1fr 150px; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .rec:last-child { border-bottom: 0; }
+  .rank { width: 34px; height: 34px; border-radius: 50%; background: var(--risk-soft); color: var(--risk); display: grid; place-items: center; font-weight: 700; }
+  .rec .name { font-weight: 600; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #f0f2f5; color: var(--muted); }
+  .bar { height: 8px; border-radius: 4px; background: #eef0f4; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--risk); border-radius: 4px; }
+  .score { font-size: 13px; color: var(--muted); text-align: right; margin-bottom: 4px; }
+  .score b { color: var(--text); font-size: 16px; }
+  .meta { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .t-placed { color: var(--accent); } .t-recalled { color: var(--risk); } .t-queried { color: var(--muted); }
+  .item h3 { margin: 0; font-size: 16px; }
+  .item .cat { color: var(--muted); font-size: 13px; }
+  .item .sim { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .hbar { display: grid; grid-template-columns: 140px 1fr 52px; gap: 10px; align-items: center; padding: 5px 0; font-size: 14px; }
+  .hbar .v { text-align: right; color: var(--muted); }
+  svg text { font: 11px sans-serif; fill: #6b7385; }
+  .hidden { display: none !important; }
+  @media (max-width: 600px) { .rec { grid-template-columns: 34px 1fr; } .rec > div:last-child { grid-column: 2; } .hbar { grid-template-columns: 100px 1fr 44px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Memory<span>Assist</span></div>
+  <div class="who" id="who"></div>
+</header>
+<nav id="nav" class="hidden">
+  <button data-tab="recs" class="active">Reminders for you</button>
+  <button data-tab="where">Where is my item?</button>
+  <button data-tab="log">Log a placement</button>
+  <button data-tab="catalog">Catalog</button>
+  <button data-tab="history">My history</button>
+  <button data-tab="admin" class="admin-only hidden">Research dashboard</button>
+</nav>
+
+<main>
+  <!-- login / register -->
+  <section id="auth" class="login card">
+    <div class="tabs2">
+      <button class="btn" id="showLogin">Log in</button>
+      <button class="btn ghost" id="showReg">Register</button>
+    </div>
+    <form id="loginForm">
+      <label>E-mail</label><input id="lEmail" type="email" required placeholder="p01@memoryassist.test">
+      <label>Password</label><input id="lPass" type="password" required>
+      <div style="margin-top:14px"><button class="btn" type="submit">Log in</button></div>
+    </form>
+    <form id="regForm" class="hidden">
+      <label>E-mail</label><input id="rEmail" type="email" required>
+      <label>Password (at least 8 characters)</label><input id="rPass" type="password" minlength="8" required>
+      <div class="row">
+        <div><label>Display name</label><input id="rName"></div>
+        <div><label>Age group</label><select id="rAge"><option>18-21</option><option selected>22-25</option><option>26-30</option><option>31+</option></select></div>
+      </div>
+      <label>How good is your memory? (1 = poor, 5 = excellent)</label><input id="rMem" type="number" min="1" max="5" value="3">
+      <div style="margin-top:14px"><button class="btn" type="submit">Create account</button></div>
+    </form>
+    <div class="msg" id="authMsg"></div>
+  </section>
+
+  <!-- recommendations -->
+  <section id="tab-recs" class="tab hidden">
+    <h2>Reminders for you</h2>
+    <p class="sub">Items you are most likely to forget, ranked by collaborative filtering (what people like you forget) and by how you looked at each item.</p>
+    <div class="card">
+      <div class="row" style="margin-bottom:6px">
+        <div style="flex:0 0 140px"><label>How many</label><select id="k"><option>3</option><option selected>5</option><option>8</option><option>12</option></select></div>
+        <div style="flex:0 0 auto"><button class="btn ghost" id="reloadRecs">Refresh</button></div>
+      </div>
+      <div id="recList"></div>
+      <div class="meta" id="recMeta"></div>
+    </div>
+  </section>
+
+  <!-- where -->
+  <section id="tab-where" class="tab hidden">
+    <h2>Where is my item?</h2>
+    <p class="sub">Shows the last place where you left an item in the Block 3 corridor.</p>
+    <div class="card">
+      <div class="row">
+        <div><label>Item</label><select id="whereItem"></select></div>
+        <div style="flex:0 0 auto"><button class="btn" id="whereBtn">Find</button></div>
+      </div>
+      <div id="whereOut" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- log -->
+  <section id="tab-log" class="tab hidden">
+    <h2>Log a placement</h2>
+    <p class="sub">What the glasses would send when you put an item down. Your reminders are recalculated afterwards.</p>
+    <div class="card">
+      <div class="row">
+        <div><label>Item</label><select id="logItem"></select></div>
+        <div><label>Location</label><select id="logLoc"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Gaze dwell time (ms)</label><input id="logDwell" type="number" min="0" value="600"></div>
+        <div><label>Fixations</label><input id="logFix" type="number" min="0" value="2"></div>
+        <div><label>Looked back (revisits)</label><input id="logRev" type="number" min="0" value="0"></div>
+      </div>
+      <div style="margin-top:14px"><button class="btn" id="logBtn">Save placement</button></div>
+      <div class="msg" id="logMsg"></div>
+    </div>
+  </section>
+
+  <!-- catalog -->
+  <section id="tab-catalog" class="tab hidden">
+    <h2>Catalog</h2>
+    <p class="sub">Search items by name, category or colour. Each card shows the items that are forgotten by the same people.</p>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row">
+        <div><label>Search</label><input id="q" placeholder="e.g. card, notebook"></div>
+        <div><label>Category</label><select id="cat"><option value="">All</option></select></div>
+        <div><label>Colour</label><input id="col" placeholder="e.g. red"></div>
+        <div style="flex:0 0 auto"><button class="btn" id="searchBtn">Search</button></div>
+      </div>
+    </div>
+    <div class="grid" id="itemGrid"></div>
+  </section>
+
+  <!-- history -->
+  <section id="tab-history" class="tab hidden">
+    <h2>My history</h2>
+    <p class="sub">Your interactions with items, newest first.</p>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <div style="flex:0 0 200px"><label>Type</label><select id="hType"><option value="">All</option><option>placed</option><option>recalled</option><option>queried</option></select></div>
+      </div>
+      <table><thead><tr><th>When</th><th>Type</th><th>Item</th><th>Details</th></tr></thead><tbody id="hBody"></tbody></table>
+    </div>
+  </section>
+
+  <!-- admin -->
+  <section id="tab-admin" class="tab hidden">
+    <h2>Research dashboard</h2>
+    <p class="sub">Forget rate of every item and the state of the recommendation model.</p>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="card"><h3 style="margin-top:0">Forget rate per item</h3><div id="forgetBars"></div></div>
+      <div class="card">
+        <h3 style="margin-top:0">Model</h3>
+        <div id="modelInfo" class="meta"></div>
+        <div style="margin-top:12px"><button class="btn" id="rebuildBtn">Rebuild model</button></div>
+        <div class="msg" id="adminMsg"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = null, me = null, itemsCache = [], locsCache = [];
+try { token = sessionStorage.getItem("ma_token"); } catch (e) {}
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  if (token) headers["Authorization"] = "Bearer " + token;
+  if (opts.json !== undefined) { headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(opts.json); }
+  const res = await fetch(path, { method: opts.method || "GET", headers, body: opts.body });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : (res.status + " error"));
+  return data;
+}
+function show(el, text, ok) { el.textContent = text; el.className = "msg show " + (ok ? "ok" : "err"); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function fmtDate(s) { if (!s) return "—"; const d = new Date(s.endsWith("Z") || s.includes("+") ? s : s + "Z"); return d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }); }
+
+// ---------- auth ----------
+$("showLogin").onclick = () => { $("loginForm").classList.remove("hidden"); $("regForm").classList.add("hidden"); $("showLogin").className = "btn"; $("showReg").className = "btn ghost"; };
+$("showReg").onclick = () => { $("regForm").classList.remove("hidden"); $("loginForm").classList.add("hidden"); $("showReg").className = "btn"; $("showLogin").className = "btn ghost"; };
+
+async function login(email, pass) {
+  const body = new URLSearchParams({ username: email, password: pass });
+  const res = await fetch("/auth/login", { method: "POST", body });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Login failed");
+  token = data.access_token;
+  try { sessionStorage.setItem("ma_token", token); } catch (e) {}
+}
+$("loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  try { await login($("lEmail").value, $("lPass").value); await start(); }
+  catch (err) { show($("authMsg"), err.message, false); }
+};
+$("regForm").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api("/auth/register", { method: "POST", json: {
+      email: $("rEmail").value, password: $("rPass").value,
+      profile: { displayName: $("rName").value || undefined, ageGroup: $("rAge").value, memorySelfRating: Number($("rMem").value) } } });
+    await login($("rEmail").value, $("rPass").value); await start();
+  } catch (err) { show($("authMsg"), err.message, false); }
+};
+function logout() { token = null; try { sessionStorage.removeItem("ma_token"); } catch (e) {} location.reload(); }
+
+// ---------- navigation ----------
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => openTab(b.dataset.tab));
+function openTab(name) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("hidden", t.id !== "tab-" + name));
+  ({ recs: loadRecs, where: () => {}, log: () => {}, catalog: search, history: loadHistory, admin: loadAdmin }[name])();
+}
+
+async function start() {
+  me = await api("/users/me");
+  $("auth").classList.add("hidden"); $("nav").classList.remove("hidden");
+  const name = (me.profile && me.profile.displayName) || me.email;
+  $("who").innerHTML = `${esc(name)} <span class="badge">${esc(me.role)}</span> &nbsp;<a href="#" id="logout">Log out</a>`;
+  $("logout").onclick = (e) => { e.preventDefault(); logout(); };
+  document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", me.role !== "admin"));
+  itemsCache = await api("/items?limit=200");
+  locsCache = await api("/locations");
+  const opts = itemsCache.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+  $("whereItem").innerHTML = opts; $("logItem").innerHTML = opts;
+  $("logLoc").innerHTML = locsCache.map(l => `<option value="${l.id}">${esc(l.code)} – ${esc(l.name)}</option>`).join("");
+  const cats = [...new Set(itemsCache.map(i => i.category))].sort();
+  $("cat").innerHTML = `<option value="">All</option>` + cats.map(c => `<option>${esc(c)}</option>`).join("");
+  openTab("recs");
+}
+
+// ---------- recommendations ----------
+$("k").onchange = loadRecs; $("reloadRecs").onclick = loadRecs;
+async function loadRecs() {
+  $("recList").innerHTML = `<p class="sub">Loading…</p>`;
+  try {
+    const r = await api("/recommendations/me?k=" + $("k").value);
+    if (!r.recommendations.length) { $("recList").innerHTML = `<p class="sub">No items yet.</p>`; return; }
+    $("recList").innerHTML = r.recommendations.map((x, n) => `
+      <div class="rec">
+        <div class="rank">${n + 1}</div>
+        <div>
+          <div class="name">${esc(x.item)}</div>
+          <div class="chips">
+            <span class="chip">${esc(x.category)}</span>
+            <span class="chip">people like you: ${Math.round(x.cfScore * 100)}%</span>
+            ${x.gazeRisk === null ? `<span class="chip">no gaze data yet</span>` : `<span class="chip">your gaze: ${Math.round(x.gazeRisk * 100)}%</span>`}
+            <span class="chip">forgotten by ${Math.round(x.itemForgetRate * 100)}% of users</span>
+          </div>
+          ${x.becauseYouForgot.length ? `<div class="meta" style="margin-top:4px">Because you forgot: ${x.becauseYouForgot.map(esc).join(", ")}</div>` : ""}
+        </div>
+        <div><div class="score">risk <b>${Math.round(x.score * 100)}%</b></div><div class="bar"><i style="width:${Math.round(x.score * 100)}%"></i></div></div>
+      </div>`).join("");
+    $("recMeta").textContent = (r.cached ? "Served from cache" : "Computed now") + ` in ${r.computeMs} ms.`;
+  } catch (err) { $("recList").innerHTML = `<p class="msg show err">${esc(err.message)}</p>`; }
+}
+
+// ---------- where ----------
+$("whereBtn").onclick = async () => {
+  const item = itemsCache.find(i => i.id === $("whereItem").value);
+  try {
+    const r = await api("/memory/where?item=" + encodeURIComponent(item.name));
+    if (!r.found) { $("whereOut").innerHTML = `<p class="sub">${esc(r.message)}</p>`; return; }
+    const L = r.location;
+    $("whereOut").innerHTML = `
+      <div style="font-size:18px"><b>${esc(r.item)}</b> → ${esc(L.name)} <span class="badge">${esc(L.code)}</span></div>
+      <div class="meta">Zone: ${esc(L.zone)} · placed ${fmtDate(r.placedAt)}${r.gaze ? ` · you looked at it for ${(r.gaze.dwellMs / 1000).toFixed(1)} s` : ""}</div>
+      ${corridor(L)}`;
+  } catch (err) { $("whereOut").innerHTML = `<p class="msg show err">${esc(err.message)}</p>`; }
+};
+function corridor(target) {
+  const W = 900, H = 120, sx = (x) => 20 + x / 55 * (W - 40), sy = (y) => 30 + y / 3 * 60;
+  const dots = locsCache.map(l => {
+    const hit = l.code === target.code;
+    return `<circle cx="${sx(l.position[0])}" cy="${sy(l.position[1])}" r="${hit ? 9 : 5}" fill="${hit ? "#e8590c" : "#c5cad6"}"/>
+            <text x="${sx(l.position[0])}" y="${hit ? 118 : 22}" text-anchor="middle">${l.code}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;margin-top:14px" role="img" aria-label="Corridor map">
+    <rect x="10" y="26" width="${W - 20}" height="68" rx="8" fill="#f0f2f5" stroke="#e3e6ec"/>${dots}</svg>`;
+}
+
+// ---------- log ----------
+$("logBtn").onclick = async () => {
+  try {
+    await api("/interactions", { method: "POST", json: {
+      type: "placed", itemId: $("logItem").value, locationId: $("logLoc").value,
+      gaze: { dwellMs: Number($("logDwell").value), fixations: Number($("logFix").value), revisits: Number($("logRev").value) } } });
+    show($("logMsg"), "Saved. Your reminders will be recalculated with this new gaze data.", true);
+  } catch (err) { show($("logMsg"), err.message, false); }
+};
+
+// ---------- catalog ----------
+$("searchBtn").onclick = search; $("q").onkeydown = (e) => { if (e.key === "Enter") search(); };
+async function search() {
+  const p = new URLSearchParams();
+  if ($("q").value) p.set("q", $("q").value);
+  if ($("cat").value) p.set("category", $("cat").value);
+  if ($("col").value) p.set("color", $("col").value);
+  try {
+    const list = await api("/items/search?" + p.toString());
+    if (!list.length) { $("itemGrid").innerHTML = `<p class="sub">Nothing found.</p>`; return; }
+    $("itemGrid").innerHTML = list.map(i => `
+      <div class="card item">
+        <h3>${esc(i.name)}</h3>
+        <div class="cat">${esc(i.category)} · ${esc(i.attributes?.color || "")} · ${esc(i.attributes?.size || "")} · salience ${i.attributes?.salience ?? "–"}</div>
+        <div style="margin-top:6px">${esc(i.description)}</div>
+        <div class="sim" id="sim-${i.id}">…</div>
+      </div>`).join("");
+    list.forEach(async (i) => {
+      try {
+        const s = await api(`/items/${i.id}/similar`);
+        $("sim-" + i.id).innerHTML = `Forgotten by ${Math.round(s.forgetRate * 100)}% · often forgotten with: ${s.similar.slice(0, 3).map(x => esc(x.item)).join(", ") || "—"}`;
+      } catch (e) { $("sim-" + i.id).textContent = ""; }
+    });
+  } catch (err) { $("itemGrid").innerHTML = `<p class="msg show err">${esc(err.message)}</p>`; }
+}
+
+// ---------- history ----------
+$("hType").onchange = loadHistory;
+async function loadHistory() {
+  const t = $("hType").value;
+  const list = await api("/users/me/history?limit=100" + (t ? "&type=" + t : ""));
+  const loc = Object.fromEntries(locsCache.map(l => [l.id, l]));
+  $("hBody").innerHTML = list.map(h => {
+    let d = "";
+    if (h.type === "placed") d = `${esc(loc[h.locationId]?.name || "")} · gaze ${h.gaze ? (h.gaze.dwellMs / 1000).toFixed(1) + " s" : "—"}`;
+    if (h.type === "recalled") d = h.recall.correct ? "remembered" : `forgot (error ${h.recall.errorMeters} m)`;
+    if (h.type === "queried") d = "asked where it is";
+    return `<tr><td>${fmtDate(h.timestamp)}</td><td class="t-${h.type}">${h.type}</td><td>${esc(h.itemName)}</td><td>${d}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="sub">No history yet.</td></tr>`;
+}
+
+// ---------- admin ----------
+async function loadAdmin() {
+  try {
+    const f = await api("/analytics/forgetting");
+    $("forgetBars").innerHTML = f.map(r => `
+      <div class="hbar"><div>${esc(r.item)}</div><div class="bar"><i style="width:${Math.round(r.forgetRate * 100)}%"></i></div><div class="v">${Math.round(r.forgetRate * 100)}%</div></div>`).join("");
+    const m = await api("/recommendations/model");
+    const g = m.gazeModel;
+    $("modelInfo").innerHTML = `
+      Item similarities for <b>${m.items}</b> items, updated ${fmtDate(m.similarityUpdatedAt)} · K = ${m.neighbours} neighbours · α = ${m.alpha} · cached lists: ${m.cachedLists}<br>
+      ${g && g.w ? "Gaze model weights: " + g.features.map((n, k) => `${n} ${g.w[k] >= 0 ? "+" : ""}${g.w[k].toFixed(2)}`).join(", ") + " (positive = more forgetting)" : "Gaze model not trained yet."}`;
+  } catch (err) { show($("adminMsg"), err.message, false); }
+}
+$("rebuildBtn").onclick = async () => {
+  $("rebuildBtn").disabled = true;
+  try { const r = await api("/recommendations/rebuild", { method: "POST" }); show($("adminMsg"), `Model rebuilt from ${r.recalls} recall results of ${r.users} users in ${r.seconds} s.`, true); loadAdmin(); }
+  catch (err) { show($("adminMsg"), err.message, false); }
+  $("rebuildBtn").disabled = false;
+};
+
+if (token) start().catch(() => { token = null; });
+</script>
+</body>
+</html>
