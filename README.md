@@ -39,7 +39,7 @@ memoryassist-api/
 ## Setup (macOS)
 
 ```bash
-git clone https://github.com/<your-username>/memoryassist-api.git
+git clone https://github.com/dzzmg/memoryassist-api.git
 cd memoryassist-api
 python3 -m venv venv              # create a virtual environment (only the first time)
 source venv/bin/activate          # activate it (every new terminal)
